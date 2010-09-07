@@ -82,7 +82,7 @@
     define('SYNC_CONFLICT_DEFAULT', SYNC_CONFLICT_OVERWRITE_PIM);
 
     // The data providers that we are using (see configuration below)
-    $BACKEND_PROVIDER = "BackendICS";
+    $BACKEND_PROVIDER = "BackendBynariIMAP";
 
     // ************************
     //  BackendICS settings
@@ -99,8 +99,9 @@
     // Defines the server to which we want to connect
     // recommended to use local servers only
     define('IMAP_SERVER', 'localhost');
+    define('BYNARIIMAP_CACHE', 'state');
     // connecting to default port (143)
-    define('IMAP_PORT', 143);
+    define('IMAP_PORT', 1143);
     // best cross-platform compatibility (see http://php.net/imap_open for options)
     define('IMAP_OPTIONS', '/notls/norsh');
     // overwrite the "from" header if it isn't set when sending emails
