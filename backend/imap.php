@@ -721,24 +721,30 @@ class BackendIMAP extends BackendDiff {
         }
     }
 
-    /* GetMessage should return the actual SyncXXX object type. You may or may not use the '$folderid' parent folder
-     * identifier here.
-     * Note that mixing item types is illegal and will be blocked by the engine; ie returning an Email object in a
-     * Tasks folder will not do anything. The SyncXXX objects should be filled with as much information as possible,
-     * but at least the subject, body, to, from, etc.
-     */
-    function GetMessage($folderid, $id, $truncsize, $mimesupport = 0) {
-        debugLog("IMAP-GetMessage: (fid: '$folderid'  id: '$id'  truncsize: $truncsize)");
-
-        // Get flags, etc
+    /* Get the raw message if possible and return it otherwise return null */
+    protected function _GetRawMessage($folderid, $id, $truncsize, $mimesupport = 0) {
+        debugLog("In _GetRawMessage folder: $folderid id: $id");
         $stat = $this->StatMessage($folderid, $id);
-
         if ($stat) {
             $this->imap_reopenFolder($folderid);
             $mail = @imap_fetchheader($this->_mbox, $id, FT_UID) . @imap_body($this->_mbox, $id, FT_PEEK | FT_UID);
 
             $mobj = new Mail_mimeDecode($mail);
+            if ($id == 29 or $id ==30 )
+            {
+                $fh = fopen("/tmp/body".$id, 'w');
+                fwrite($fh, $mobj->_body);
+                fclose($fh);
+            }
             $message = $mobj->decode(array('decode_headers' => true, 'decode_bodies' => true, 'include_bodies' => true, 'charset' => 'utf-8'));
+            return array($message, $stat);
+        }
+        return null;
+    }
+
+    /* Get the raw message if possible and return it otherwise return null */
+    protected function _GetEmailMessage($message, $folderid, $id, $truncsize, $stat) {
+        // Get flags, etc
 
             $output = new SyncMail();
 
@@ -797,6 +803,20 @@ class BackendIMAP extends BackendDiff {
             unset($mobj);
             unset($mail);
             return $output;
+    }
+    /* GetMessage should return the actual SyncXXX object type. You may or may not use the '$folderid' parent folder
+     * identifier here.
+     * Note that mixing item types is illegal and will be blocked by the engine; ie returning an Email object in a
+     * Tasks folder will not do anything. The SyncXXX objects should be filled with as much information as possible,
+     * but at least the subject, body, to, from, etc.
+     */
+    function GetMessage($folderid, $id, $truncsize, $mimesupport = 0) {
+        debugLog("IMAP-GetMessage: (fid: '$folderid'  id: '$id'  truncsize: $truncsize)");
+
+        $tab = $this->_GetRawMessage($folderid, $id, $truncsize, $mimesupport);
+        if ($tab[0])
+        {
+            return $this->_GetEmailMessage($tab[0], $folderid, $id, $truncsize, $tab[1]);
         }
         return false;
     }
