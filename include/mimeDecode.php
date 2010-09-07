@@ -314,7 +314,11 @@ class Mail_mimeDecode
                 case 'text/plain':
                     $encoding = isset($content_transfer_encoding) ? $content_transfer_encoding['value'] : '7bit';
                     $charset = isset($return->ctype_parameters['charset']) ? $return->ctype_parameters['charset'] : $this->_charset;
-                    $this->_include_bodies ? $return->body = ($this->_decode_bodies ? $this->_decodeBody($body, $encoding, $charset) : $body) : null;
+                    # Don't try to decode empty string has it will badly fail
+                    if (strlen($body) > 0)
+                        $this->_include_bodies ? $return->body = ($this->_decode_bodies ? $this->_decodeBody($body, $encoding, $charset) : $body) : null;
+                    else
+                        $return->body = "";
                     break;
 
                 case 'text/html':
@@ -601,7 +605,7 @@ class Mail_mimeDecode
         return $input;
     }
 
-    /**
+   /**
      * Given a body string and an encoding type,
      * this function will decode and return it.
      *
@@ -900,7 +904,6 @@ class Mail_mimeDecode
     function _fromCharset($charset, $input) {
         if($charset == '')
             return $input;
-
         return @iconv($charset, $this->_charset. "//TRANSLIT", $input);
     }
     
@@ -916,4 +919,4 @@ class Mail_mimeDecode
         debugLog("mimeDecode error: ". $message);
         return false;
     }    
-} // End of class
+} // End of class 
