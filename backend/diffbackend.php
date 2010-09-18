@@ -474,12 +474,17 @@ class ExportChangesDiff extends DiffState {
                         $stat = $this->_backend->StatMessage($this->_folderid, $change["id"]);
                         $message = $this->_backend->GetMessage($this->_folderid, $change["id"], $truncsize);
 
-                        // copy the flag to the message
-                        $message->flags = (isset($change["flags"])) ? $change["flags"] : 0;
+                        if (is_object($message))
+                        {
+                            // copy the flag to the message
+                            $message->flags = (isset($change["flags"])) ? $change["flags"] : 0;
 
-                        if($stat && $message) {
-                            if($this->_flags & BACKEND_DISCARD_DATA || $this->_importer->ImportMessageChange($change["id"], $message) == true)
-                                $this->updateState("change", $stat);
+                            if($stat && $message) {
+                                if($this->_flags & BACKEND_DISCARD_DATA || $this->_importer->ImportMessageChange($change["id"], $message) == true)
+                                {
+                                    $this->updateState("change", $stat);
+                                }
+                            }
                         }
                         break;
                     case "delete":

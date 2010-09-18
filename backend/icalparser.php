@@ -2,7 +2,7 @@
 /***********************************************
 * File      :   bynariparser.php
 * Project   :   Z-Push
-* Descr     :   Parser for bynari object 
+* Descr     :   Parser for bynari object
 *
 * Created   :   30.08.2010
 *
@@ -53,7 +53,6 @@ class BaseCalendarObject {
 };
 
 class CalendarEvent extends BaseCalendarObject{
-    var $busystatus;
     var $uid;
     var $summary;
     var $body;
@@ -63,16 +62,143 @@ class CalendarEvent extends BaseCalendarObject{
     var $organizerEmail;
     var $location;
     var $_timezones;
+    var $busy;
+    var $attendees;
+    var $allday;
+    var $sensivity;
 
 
-    function CalendarEvent($tzlist) {
+    function CalendarEvent($tzlist=NULL) {
         $this->_timezones = $tzlist;
+        $this->buf = array();
+        $this->attendees = array();
+        $this->allday = 0;
+    }
+
+    function setBusy($val)
+    {
+        $this->busy = $val;
+    }
+
+    function setUid($val)
+    {
+        $this->uid = $val;
+    }
+
+    function setSummary($val)
+    {
+        $this->summary = $val;
+    }
+
+    function setBody($val)
+    {
+        $this->body = $val;
+    }
+
+    function setstart($val)
+    {
+        $this->start = $val;
+    }
+
+    function setEnd($val)
+    {
+        $this->end = $val;
+    }
+
+    function setOrganizer($val)
+    {
+        $this->organizer = $val;
+    }
+
+    function setOrganizerEmail($val)
+    {
+        $this->organizerEmail = $val;
+    }
+
+    function setLocation($val)
+    {
+        $this->location = $val;
+    }
+
+    function setAllDay($val)
+    {
+        $this->allday = $val;
+    }
+
+    function setAttendees($val)
+    {
+        $this->attendees = $val;
+    }
+
+    function setSensivity($val)
+    {
+        $this->sensivity = $val;
+    }
+
+    function toICALString()
+    {
+
+        $out = "BEGIN:VEVENT\r\n";
+        $cn = "";
+        if (isset($this->organizer))
+        {
+            $cn = ";CN=".$this->organizer;
+        }
+        $out .= "ORANIZER".$cn.":MAILTO:".$this->organizerEmail."\r\n";
+        foreach($this->attendees as $att)
+        {
+            $cn = "";
+            if (isset($att['name']))
+            {
+                $cn = ";CN=".$att['name'];
+            }
+            $out .= "ATTENDEE".$cn.":MAILTO:".$att['email']."\r\n";
+        }
+        $out .= "UID:".$this->uid."\r\n";
+        if (isset($this->sensitivity))
+        {
+            $out .= "CLASS:".$this->sensitivity."\r\n";
+        }
+        $out .= "SUMMARY:".$this->summary."\r\n";
+        if (isset($this->location))
+        {
+            $out .= "LOCATION:".$this->location."\r\n";
+        }
+        if (isset($this->description))
+        {
+            $out .= "DESCRIPTION:".$this->description."\r\n";
+        }
+        if ($this->allday)
+        {
+            $out .= "DTSTART;VALUE=DATE:".$this->start->format("Ymd")."\r\n";
+            if (($this->end - $this->start) > 86400)
+            {
+                $out .= "DTEND;VALUE=DATE:".$this->end->format("Ymd")."\r\n";
+            }
+        }
+        else
+        {
+            $out .= "DTSTART:".$this->start->format("Ymd\THis\Z")."\r\n";
+            $out .= "DTEND:".$this->end->format("Ymd\THis\Z")."\r\n";
+        }
+        $date = new DateTime();
+        $date->setTimestamp(time());
+        $out .= "DTSTAMP:".$date->format("Ymd\THis\Z")."\r\n";
+        $out .= "LAST-MODIFIED:".$date->format("Ymd\THis\Z")."\r\n";
+        $out .= "CREATED:".$date->format("Ymd\THis\Z")."\r\n";
+
+        if (isset($this->busy))
+        {
+            $out .= "X-OUTLOOK-BUSY-STATUS;VALUE=INTEGER:".$this->busy."\r\n";
+        }
+        $out .= "END:VEVENT\r\n";
+        return $out;
     }
 
     function parse() {
         $prev = null;
-        $this->buf[] = "";
-        while ($line = next($this->buf))
+        $inSubObj=0;
+        foreach($this->buf as $line)
         {
             if (preg_match('/^ (.+)/', $line, $matches))
             {
@@ -80,7 +206,15 @@ class CalendarEvent extends BaseCalendarObject{
             }
             else
             {
-                if (preg_match('/^UID:(.+)/', $prev, $matches))
+                if (preg_match("/^END:(.*)/", $line, $matches) and $inSubObj)
+                {
+                    $inSubObj--;
+                }
+                else if (preg_match("/^BEGIN:(.*)/", $line, $matches))
+                {
+                    $inSubObj++;
+                }
+                else if (preg_match('/^UID:(.+)/', $prev, $matches))
                 {
                     $this->uid = $matches[1];
                 }
@@ -88,7 +222,7 @@ class CalendarEvent extends BaseCalendarObject{
                 {
                     $this->summary = $matches[1];
                 }
-                else if (preg_match('/^ORGANIZER(;[^:]+)?:(.+)/', $prev, $matches))
+                else if (preg_match('/^ORGANIZER(;[^:]+)?:(?:(?:MAILTO)|(?:mailto))?:?([^:]+)/', $prev, $matches))
                 {
                     $this->organizerEmail = $matches[2];
                     if (preg_match('/CN=((?:[^;]|((?<=\\\\);))+)/', $matches[1], $matches2))
@@ -96,19 +230,72 @@ class CalendarEvent extends BaseCalendarObject{
                         $this->organizer = $matches2[1];
                     }
                 }
+                else if (preg_match('/^ATTENDEE(;[^:]+)?:(?:(?:MAILTO)|(?:mailto))?:?([^:]+)/', $prev, $matches))
+                {
+                    $tab = array();
+                    $tab['email'] = $matches[2];
+                    if (preg_match('/CN=((?:[^;]|((?<=\\\\);))+)/', $matches[1], $matches2))
+                    {
+                        $tab['name'] = $matches2[1];
+                    }
+                    $this->attendees[] = $tab;
+                }
+                else if (preg_match('/^LOCATION:(.+)/', $prev, $matches))
+                {
+                    $this->location = $matches[1];
+                }
+                else if (preg_match('/^CLASS:(.+)/', $prev, $matches))
+                {
+                    $this->sensivity = $matches[1];
+                }
+                else if (preg_match('/^X-OUTLOOK-BUSY-STATUS(?:;[^:]+)?:(.+)/', $prev, $matches))
+                {
+                    $this->busy = $matches[1];
+                }
                 else if (preg_match('/^DTSTART(?:(?:;TZID=)([^;]+))?(?:[^:]+)?:(.+)/', $prev, $matches))
                 {
                     $start_tz = $matches[1];
-                    $tz = $this->_timezones[$start_tz];
                     $t = strptime($matches[2], "%Y%m%dT%H%M%S");
-                    $this->start = $tz->getlocaldate($t);
+                    if ($t == "")
+                    {
+                        $this->allday = 1;
+                        $t = strptime($matches[2], "%Y%m%d");
+                    }
+                    if (isset($start_tz) && $start_tz != "")
+                    {
+                        $tz = $this->_timezones[$start_tz];
+                        $this->start = $tz->getlocaldate($t);
+                    }
+                    else
+                    {
+                        $date = sprintf("%04d%02d%02d%02d%02d%02d",
+                            $t['tm_year'] + 1900, $t['tm_mon'] + 1,
+                            $t['tm_mday'], $t['tm_hour'],
+                            $t['tm_min'], $t['tm_sec']);
+                        $this->start = date_create($date, new DateTimeZone("UTC"));
+                    }
                 }
                 else if (preg_match('/^DTEND(?:(?:;TZID=)([^;]+))?(?:[^:]+)?:(.+)/', $prev, $matches))
                 {
                     $end_tz = $matches[1];
-                    $tz = $this->_timezones[$end_tz];
                     $t = strptime($matches[2], "%Y%m%dT%H%M%S");
-                    $this->end = $tz->getlocaldate($t);
+                    if ($t == "")
+                    {
+                        $t = strptime($matches[2], "%Y%m%d");
+                    }
+                    if (isset($end_tz) && $end_tz != "")
+                    {
+                        $tz = $this->_timezones[$end_tz];
+                        $this->end = $tz->getlocaldate($t);
+                    }
+                    else
+                    {
+                        $date = sprintf("%04d%02d%02d%02d%02d%02d",
+                            $t['tm_year'] + 1900, $t['tm_mon'] + 1,
+                            $t['tm_mday'], $t['tm_hour'],
+                            $t['tm_min'], $t['tm_sec']);
+                        $this->end = date_create($date, new DateTimeZone("UTC"));
+                    }
                 }
                 else if (preg_match('/^DESCRIPTION:(.+)/', $prev, $matches))
                 {
@@ -133,8 +320,9 @@ class CalendarTzPeriod extends BaseCalendarObject{
     var $_abrToDay = array("SU" => "Sunday", "MO" => "Monday", "TU" => "Tuesday", "WE" => "Wednesday", "TH" => "Thursday", "FR" => "Friday", "SA" => "SATURDAY");
     function CalendarTzPeriod($type) {
         $this->type = strtolower($type);
+        $this->buf = array();
     }
-    
+
     function parse() {
         foreach($this->buf as $line)
         {
@@ -155,7 +343,7 @@ class CalendarTzPeriod extends BaseCalendarObject{
             {
                 $this->notbefore = strptime($matches[1], "%Y%m%dT%H%M%S");
             }
-            else if (preg_match('/^RRULE:FREQ=([^;]+);(.+)/', $line, $matches)) 
+            else if (preg_match('/^RRULE:FREQ=([^;]+);(.+)/', $line, $matches))
             {
                 $tab = explode(";", $matches[2]);
                 if ($matches[1] == "YEARLY")
@@ -214,6 +402,12 @@ class CalendarTz extends BaseCalendarObject{
     var $_current_name;
     var $name;
 
+    function toICALString()
+    {
+        /* Not implemented */
+        return "";
+    }
+
     function CalendarTz() {
     }
 
@@ -222,15 +416,15 @@ class CalendarTz extends BaseCalendarObject{
         $datedl = date_format($this->daylight->getCutDate(1900 + $date['tm_year']), "Ymdhis");
         $datest = date_format($this->standard->getCutDate(1900 + $date['tm_year']), "Ymdhis");;
         # By default for a given year we concider that the day for the daylight saving is smaller
-        # (==before) the day of standard 
+        # (==before) the day of standard
 
         $lowest = $datedl;
         $highest = $datest;
-        $daylightBeforeStandard = 1; 
+        $daylightBeforeStandard = 1;
 
         if ($datedl > $datest)
         {
-            $daylightBeforeStandard = 0; 
+            $daylightBeforeStandard = 0;
             $lowest = $datest;
             $highest = $datedl;
         }
@@ -239,8 +433,8 @@ class CalendarTz extends BaseCalendarObject{
                         $date['tm_year'] + 1900, $date['tm_mon'] + 1,
                         $date['tm_mday'], $date['tm_hour'],
                         $date['tm_min'], $date['tm_sec']);
-        
-        $dateobj = date_create($t); 
+
+        $dateobj = date_create($t, new DateTimeZone("UTC"));
 
         if ($t <= $lowest || $t >= $highest)
         {
@@ -309,20 +503,51 @@ class CalendarTz extends BaseCalendarObject{
 };
 
 class CalendarCoreObject {
-    
+
     var $_objs;
     var $_nb_objs;
     var $_timezones;
     var $_events;
 
+    function CalendarCoreObject()
+    {
+        $this->_nb_objs = 0;
+        $this->_events = array();
+        $this->_timezones = array();
+    }
 
     function getEvent($nb)
     {
-        return $this->_events[$nb];
+        if( isset($this->_events[$nb]))
+        {
+            return $this->_events[$nb];
+        }
+        return null;
+    }
+
+    function setEvent($nb, $event)
+    {
+        $this->_events[$nb] = $event;
     }
     /* GetFolder should return an actual SyncFolder object with all the properties set. Folders
      * are pretty simple really, having only a type, a name, a parent and a server ID.
      */
+    function toICALString()
+    {
+
+        $out = "BEGIN:VCALENDAR\r\n";
+        foreach($this->_timezones as $tz)
+        {
+            $out .= $tz->toICALString();
+        }
+        foreach($this->_events as $event)
+        {
+            $out .= $event->toICALString();
+        }
+        $out .= "END:VCALENDAR\r\n";
+
+        return $out;
+    }
 
     function parse($text) {
         $tab = explode("\n", $text);
@@ -333,11 +558,11 @@ class CalendarCoreObject {
         }
         next($tab);
         $in_obj = 0;
-        $this->_nb_objs = 0;
         $type = "";
+        $this->_nb_objs = 0;
         $this->_events = array();
 
-        while($line = next($tab))
+        foreach($tab as $line)
         {
             $line = rtrim($line, "\r");
             if (preg_match('/^END:(.+)(\r)?/i', $line, $matches))
@@ -363,7 +588,12 @@ class CalendarCoreObject {
                 $in_obj = 1;
                 $this->_nb_objs++;
                 $type = $matches[1];
-                if ($matches[1] == "VTIMEZONE")
+                if ($matches[1] == "VCALENDAR")
+                {
+                    $this->_nb_objs--;
+                    $in_obj = 0;
+                }
+                else if ($matches[1] == "VTIMEZONE")
                 {
                     $this->_objs[] = new CalendarTz();
                 }
