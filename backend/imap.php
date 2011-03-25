@@ -766,7 +766,11 @@ class BackendIMAP extends BackendDiff {
 
             $output->bodysize = strlen($body);
             $output->body = $body;
-            $output->datereceived = isset($message->headers["date"]) ? strtotime($message->headers["date"]) : null;
+            if(isset($message->headers["date"])) {
+                $output->datereceived = is_array($message->headers["date"]) ? strtotime($message->headers["date"][0]) : strtotime($message->headers["date"]);
+            } else {
+                $output->datereceived = null;
+            }
             $output->displayto = isset($message->headers["to"]) ? $message->headers["to"] : null;
             $output->importance = isset($message->headers["x-priority"]) ? preg_replace("/\D+/", "", $message->headers["x-priority"]) : null;
             $output->messageclass = "IPM.Note";
