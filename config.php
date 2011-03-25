@@ -101,6 +101,20 @@
     // Defines the server to which we want to connect
     define('MAPI_SERVER', 'file:///var/run/zarafa');
 
+    // ************************
+    // LDAP parameters for 'ldap' in 'IMAP_DEFAULTFROM'
+
+    // ************************
+    // Server to connect to
+    define('LDAP_SERVER', 'localhost');
+    // Where to look for attribute for the user
+    define('LDAP_BASE', 'OU=users_ou, DC=domain, DC=tld');
+    // Attribute holding the email address of the user
+    define('LDAP_MAIL_ATTRIBUTE', 'mail');
+    // Attribute holding the name of the user
+    define('LDAP_NAME_ATTRIBUTE', 'displayname');
+
+
 
     // ************************
     //  BackendIMAP settings
@@ -117,6 +131,8 @@
     // options: 'username'    - the username will be set (usefull if your login is equal to your emailaddress)
     //        'domain'    - the value of the "domain" field is used
     //        '@mydomain.com' - the username is used and the given string will be appended
+    //        'ldap' - perform an ldap request in order to find the email and the full name of the user, from will look
+    //                 like "full_user_name" <emailaddress>
     define('IMAP_DEFAULTFROM', '');
     // copy outgoing mail to this folder. If not set z-push will try the default folders
     define('IMAP_SENTFOLDER', '');

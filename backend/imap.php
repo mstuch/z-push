@@ -71,6 +71,7 @@ class BackendIMAP extends BackendDiff {
         if ($this->_mbox) {
             debugLog("IMAP connection opened sucessfully ");
             $this->_username = $username;
+            $this->_password = $password;
             $this->_domain = $domain;
             // set serverdelimiter
             $this->_serverdelimiter = $this->getServerDelimiter();
@@ -112,6 +113,44 @@ class BackendIMAP extends BackendDiff {
 
         return true;
     }
+    function _getFullFrom()
+    {
+          $reg=  "/ldap:\/\/(.+):(.+)/";
+          if (preg_match($reg,LDAP_SERVER,$tab))
+          {
+              $addrip=$tab[1];
+              $port=$tab[2];
+          }
+          else
+          {
+              $addrip=LDAP_SERVER;
+              $port=389;
+          }
+          $conn=ldap_connect($addrip,$port) ;
+          if ($conn == 0)
+          {
+              $this->Log("ERR LDAP connexion to server : " . LDAP_SERVER . " failed");
+              return 0;
+          }
+          if (!ldap_bind ($conn, $this->_domain."\\".$this->_username,$this->_password))
+          {
+              $this->Log("ERR LDAP Invalid credential: ".$this->_username) ;
+              return "";
+          }
+          //search for the DN of the autentifier
+          if ( ! $sr=ldap_search($conn,LDAP_BASE,"(samAccountName=".$this->_username.")"))
+          {
+              $this->Log("ERR LDAP ". $this->_username ." not found")  ;
+              return "";
+          }
+          $entries=ldap_get_entries($conn,$sr);
+          if ($entries['count'] == 1)
+          {
+              $email = $entries[0][LDAP_MAIL_ATTRIBUTE][0];
+              $name = $entries[0][LDAP_NAME_ATTRIBUTE][0];
+              return "\"$name\" <$email>";
+          }
+    }
 
     /* Sends a message which is passed as rfc822. You basically can do two things
      * 1) Send the message to an SMTP server as-is
@@ -137,6 +176,7 @@ class BackendIMAP extends BackendDiff {
 
         // save some headers when forwarding mails (content type & transfer-encoding)
         $headers = "";
+        $rpath = "";
         $forward_h_ct = "";
         $forward_h_cte = "";
         $envelopefrom = "";
@@ -151,7 +191,7 @@ class BackendIMAP extends BackendDiff {
         $org_charset = "";
         $org_boundary = false;
         foreach($message->headers as $k => $v) {
-            if ($k == "subject" || $k == "to" || $k == "cc" || $k == "bcc")
+            if ($k == "date" || $k == "subject" || $k == "to" || $k == "cc" || $k == "bcc")
                 continue;
 
             if ($k == "content-type") {
@@ -192,8 +232,16 @@ class BackendIMAP extends BackendDiff {
                     $changedfrom = true;
                     if      (IMAP_DEFAULTFROM == 'username') $v = $this->_username;
                     else if (IMAP_DEFAULTFROM == 'domain')   $v = $this->_domain;
+                    else if (IMAP_DEFAULTFROM == 'ldap')
+                    {
+                        $val = $this->_getFullFrom();
+                        if ($val != "")
+                        {
+                            $v = $val;
+                            $changedfrom = true;
+                        }
+                    }
                     else $v = $this->_username . IMAP_DEFAULTFROM;
-                    $envelopefrom = "-f$v";
                 }
             }
 
@@ -205,6 +253,31 @@ class BackendIMAP extends BackendDiff {
                     else if (IMAP_DEFAULTFROM == 'domain')   $v = $this->_domain;
                     else $v = $this->_username . IMAP_DEFAULTFROM;
                 }
+                if (IMAP_DEFAULTFROM == 'ldap')
+                {
+                  $val = $this->_getFullFrom();
+                  $v = $val;
+                  if ($val != "")
+                  {
+                    $reg=  "/.*<(.+)>/";
+                    if (preg_match($reg,$val,$tab))
+                    {
+                      $v2 = $tab[1];
+                    }
+                  }
+                }
+                if (!isset($v2)) $v2 = $v;
+                $envelopefrom = "-f $v2";
+            }
+
+            if (IMAP_DEFAULTFROM == 'ldap' && $k == "from")
+            {
+              $val = $this->_getFullFrom();
+              if ($val != "")
+              {
+                $v = $val;
+                $changedfrom = true;
+              }
             }
 
             // all other headers stay
@@ -216,19 +289,41 @@ class BackendIMAP extends BackendDiff {
         if(IMAP_DEFAULTFROM && !$changedfrom){
             if      (IMAP_DEFAULTFROM == 'username') $v = $this->_username;
             else if (IMAP_DEFAULTFROM == 'domain')   $v = $this->_domain;
+            else if (IMAP_DEFAULTFROM == 'ldap')
+            {
+              $val = $this->_getFullFrom();
+              if ($val!= "")
+              {
+                $v = $val;
+              }
+            }
             else $v = $this->_username . IMAP_DEFAULTFROM;
             if ($headers) $headers .= "\n";
             $headers .= 'From: '.$v;
-            $envelopefrom = "-f$v";
         }
 
         // set "Return-Path" header if not set on the device
         if(IMAP_DEFAULTFROM && !$returnPathSet){
             if      (IMAP_DEFAULTFROM == 'username') $v = $this->_username;
             else if (IMAP_DEFAULTFROM == 'domain')   $v = $this->_domain;
+            else if (IMAP_DEFAULTFROM == 'ldap')
+            {
+              $val = $this->_getFullFrom();
+              if ($val!= "")
+              {
+                $v = $val;
+                $reg=  "/.*<(.+)>/";
+                if (preg_match($reg,$val,$tab))
+                {
+                  $v2 = $tab[1];
+                }
+              }
+            }
             else $v = $this->_username . IMAP_DEFAULTFROM;
             if ($headers) $headers .= "\n";
-            $headers .= 'Return-Path: '.$v;
+            $headers .= 'Return-Path: '.$v2;
+            if (!isset($v2)) $v2 = $v;
+            $envelopefrom = "-f $v2";
         }
 
         // if this is a multipart message with a boundary, we must use the original body
