@@ -515,14 +515,18 @@ class BackendIMAP extends BackendDiff {
             foreach ($list as $val) {
                 $box = array();
                 // cut off serverstring
-                $box["id"] = imap_utf7_decode(substr($val->name, strlen($this->_server)));
+                $box["id"] = mb_convert_encoding(substr($val->name, strlen($this->_server)),"UTF8", "UTF7-IMAP");
 
-                $fhir = array_map('imap_utf7_encode',explode($val->delimiter, $box["id"]));
+                $fhir = explode($val->delimiter, $box["id"]);
+                for($k=0; $k < count($fhir);$k++) {
+                    $fhir[$k] = mb_convert_encoding($fhir[$k], "UTF7-IMAP", "UTF8");
+                }
+
                 if (count($fhir) > 1) {
                     $this->getModAndParentNames($fhir, $box["mod"], $box["parent"]);
                 }
                 else {
-                    $box["mod"] = imap_utf7_encode($box["id"]);
+                    $box["mod"] = $box["id"];
                     $box["parent"] = "0";
                 }
                 $folders[]=$box;
@@ -595,10 +599,8 @@ class BackendIMAP extends BackendDiff {
         else {
                if (count($fhir) > 1) {
                    $this->getModAndParentNames($fhir, $folder->displayname, $folder->parentid);
-                   $folder->displayname = windows1252_to_utf8(imap_utf7_decode($folder->displayname));
                }
                else {
-                $folder->displayname = windows1252_to_utf8(imap_utf7_decode($id));
                 $folder->parentid = "0";
                }
             $folder->type = SYNC_FOLDER_TYPE_OTHER;
