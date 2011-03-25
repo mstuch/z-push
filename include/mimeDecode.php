@@ -367,6 +367,13 @@ class Mail_mimeDecode
                         $content_transfer_encoding['value'] = '7bit';
                         // if there is no explicit charset, then don't try to convert to default charset
                         $charset = isset($return->ctype_parameters['charset']) ? $return->ctype_parameters['charset'] : '';
+                        if (isset($return->d_parameters['filename']) AND $return->disposition == "attachment") {
+
+                            // if the object is attachement and has a filename then set charset to '' ... it's most probably not
+                            // text (ie. word, pdf, picture ...) so decoding from one charset to another is most probaly meaningless
+                            // Do this even if the attachment has a charset
+                            $charset = '';
+                        }
                         $this->_include_bodies ? $return->body = ($this->_decode_bodies ? $this->_decodeBody($body, $content_transfer_encoding['value'], $charset) : $body) : null;
                     break;
             }
@@ -612,6 +619,9 @@ class Mail_mimeDecode
      */
     function _decodeBody($input, $encoding = '7bit', $charset = '')
     {
+        if(strlen($input) == 0) {
+            return $input;
+        }
         switch (strtolower($encoding)) {
             case '7bit':
                 return $this->_fromCharset($charset, $input);;
