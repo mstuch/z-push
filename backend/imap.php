@@ -190,8 +190,13 @@ class BackendIMAP extends BackendDiff {
         $body_base64 = false;
         $org_charset = "";
         $org_boundary = false;
+        $date = "";
         foreach($message->headers as $k => $v) {
-            if ($k == "date" || $k == "subject" || $k == "to" || $k == "cc" || $k == "bcc")
+            if ($k == "date") {
+                $date = $message->headers["date"];
+                continue;
+            }
+            if ($k == "subject" || $k == "to" || $k == "cc" || $k == "bcc")
                 continue;
 
             if ($k == "content-type") {
@@ -491,6 +496,9 @@ class BackendIMAP extends BackendDiff {
         // add message to the sent folder
         // build complete headers
         $headers .= "\nTo: $toaddr";
+        if ($date != "") {
+          $headers .= "\nDate: $date";
+        }
         $headers .= "\nSubject: " . $message->headers["subject"];
 
         if (!defined('IMAP_USE_IMAPMAIL') || IMAP_USE_IMAPMAIL == true) {
