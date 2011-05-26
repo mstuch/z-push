@@ -1131,9 +1131,9 @@ class BackendIMAP extends BackendDiff {
 
     function enc_multipart($boundary, $body, $body_ct, $body_cte) {
         $mail_body = "This is a multi-part message in MIME format\n\n";
-//        $mail_body .= "--$boundary\n";
-//        $mail_body .= "Content-Type: $body_ct\n";
-//        $mail_body .= "Content-Transfer-Encoding: $body_cte\n\n";
+        $mail_body .= "--$boundary\n";
+        $mail_body .= "Content-Type: $body_ct\n";
+        $mail_body .= "Content-Transfer-Encoding: $body_cte\n\n";
         $mail_body .= "$body\n\n";
 
         return $mail_body;
