@@ -331,6 +331,7 @@ class BackendIMAP extends BackendDiff {
             $envelopefrom = "-f $v2";
         }
 
+        // message is what the device sent us
         // if this is a multipart message with a boundary, we must use the original body
         if ($use_orgbody) {
             list(,$body) = $mobj->_splitBodyHeader($rfc822);
@@ -375,6 +376,7 @@ class BackendIMAP extends BackendDiff {
 
             }
             else {
+                debugLog("IMAP-SendMail: forward inline use_original_body $use_orgbody");
                 $mobj2 = new Mail_mimeDecode($origmail);
                 $mess2 = $mobj2->decode(array('decode_headers' => true, 'decode_bodies' => true, 'include_bodies' => true, 'charset' => 'utf-8'));
 
@@ -416,7 +418,7 @@ class BackendIMAP extends BackendDiff {
                 else
                     $body = $nbody;
 
-
+                // mess2 is the message that we forward fetched from the imap backend
                 if(isset($mess2->parts)) {
                     $attached = false;
 
