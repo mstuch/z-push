@@ -428,8 +428,8 @@ class BackendIMAP extends BackendDiff {
                         $body = substr($body, 0, strrpos($body, "--$att_boundary--"));
                     }
                     else {
-                        $att_boundary = strtoupper(md5(uniqid(time())));
                         // add boundary headers
+                        $att_boundary = strtoupper(md5(uniqid(time())));
                         $headers .= "\n" . "Content-Type: multipart/mixed; boundary=$att_boundary";
                     }
 
