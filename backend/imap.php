@@ -454,7 +454,6 @@ class BackendIMAP extends BackendDiff {
                             }
                             // first attachment
                             else {
-                                $encmail = $body;
                                 $attached = true;
                                 $body = $this->enc_multipart($att_boundary, $body, $forward_h_ct, $forward_h_cte);
                                 $body .= $this->enc_attach_file($att_boundary, $attname, strlen($part->body),$part->body, $part->ctype_primary ."/". $part->ctype_secondary);
