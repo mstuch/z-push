@@ -54,13 +54,15 @@ function getDebugInfo() {
     return $debugstr;
 }
 
-function debugLog($message) {
-    global $auth_user;
-    $user = (isset($auth_user))?"[". $auth_user ."] ":"";
-    @$fp = fopen(BASE_PATH . "/debug.txt","a");
-    @$date = strftime("%x %X");
-    @fwrite($fp, "$date [". getmypid() ."] ". $user . "$message\n");
-    @fclose($fp);
+function debugLog($message, $level = 1) {
+    if ($level <= LOG_LEVEL) {
+      global $auth_user;
+      $user = (isset($auth_user))?"[". $auth_user ."] ":"";
+      @$fp = fopen(BASE_PATH . "/debug.txt","a");
+      @$date = strftime("%x %X");
+      @fwrite($fp, "$date [". getmypid() ."] ". $user . "$message\n");
+      @fclose($fp);
+   }
 }
 
 function zarafa_error_handler($errno, $errstr, $errfile, $errline, $errcontext) {

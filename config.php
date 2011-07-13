@@ -147,6 +147,7 @@
     // ************************
     define('MAILDIR_BASE', '/tmp');
     define('MAILDIR_SUBDIR', 'Maildir');
+    define('LOG_LEVEL', 1);
 
     // **********************
     //  BackendVCDir settings

@@ -382,12 +382,12 @@ class ExportChangesDiff extends DiffState {
 
         if($this->_folderid) {
             // Get the changes since the last sync
-            debugLog("Initializing message diff engine");
+            debugLog("Initializing message diff engine", 2);
 
             if(!isset($this->_syncstate) || !$this->_syncstate)
                 $this->_syncstate = array();
 
-            debugLog(count($this->_syncstate) . " messages in state");
+            debugLog(count($this->_syncstate) . " messages in state", 2);
 
             //do nothing if it is a dummy folder
             if ($this->_folderid != SYNC_FOLDER_TYPE_DUMMY) {
@@ -406,7 +406,7 @@ class ExportChangesDiff extends DiffState {
                 }
             }
 
-            debugLog("Found " . count($this->_changes) . " message changes");
+            debugLog("Found " . count($this->_changes) . " message changes", 2);
         } else {
             debugLog("Initializing folder diff engine");
 

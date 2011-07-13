@@ -1040,7 +1040,7 @@ class BackendIMAP extends BackendDiff {
     // returns a changes array using imap_status
     // if changes occurr default diff engine computes the actual changes
     function AlterPingChanges($folderid, &$syncstate) {
-        debugLog("AlterPingChanges on $folderid stat: ". $syncstate);
+        debugLog("AlterPingChanges on $folderid stat: ". $syncstate, 2);
         $this->imap_reopenFolder($folderid);
 
         // courier-imap only cleares the status cache after checking
