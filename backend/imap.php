@@ -460,6 +460,12 @@ class BackendIMAP extends BackendDiff {
                             }
                         }
                     }
+                    if (!$attached) {
+                        // We need to attach the curent body as an attachement as it hasn't been done
+                        // before and we registered the message as a multipart.
+                        $attached = true;
+                        $body = $this->enc_multipart($att_boundary, $body, $forward_h_ct, $forward_h_cte);
+                    }
                     $body .= "--$att_boundary--\n\n";
                 }
 
