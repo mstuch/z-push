@@ -926,8 +926,10 @@ function HandlePing($backend, $devid) {
     $decoder = new WBXMLDecoder($input, $zpushdtd);
     $encoder = new WBXMLEncoder($output, $zpushdtd);
 
+    $goodheartbeat = 900;
     $collections = array();
     $lifetime = 0;
+    $forceHeartBeat = 0;
 
     // Get previous defaults if they exist
     $file = STATE_DIR . "/" . $devid;
@@ -935,13 +937,22 @@ function HandlePing($backend, $devid) {
         $ping = unserialize(file_get_contents($file));
         $collections = $ping["collections"];
         $lifetime = $ping["lifetime"];
+        if (isset($ping["pingrunning"])) {
+          // We received a ping request while another is running.
+          $forceHeartBeat = 1;
+        }
     }
 
     if($decoder->getElementStartTag(SYNC_PING_PING)) {
         debugLog("Ping init");
         if($decoder->getElementStartTag(SYNC_PING_LIFETIME)) {
-            $lifetime = $decoder->getElementContent();
-            $decoder->getElementEndTag();
+          $lifetime = $decoder->getElementContent();
+          if ($forceHeartBeat == 1) {
+            // The client asked for a special value while another ping is running, it's a sign
+            // that he can't cope with our highest value
+            $forceHeartBeat = 2;
+          }
+          $decoder->getElementEndTag();
         }
 
         if($decoder->getElementStartTag(SYNC_PING_FOLDERS)) {
@@ -991,17 +1002,54 @@ function HandlePing($backend, $devid) {
             if(!$decoder->getElementEndTag())
                 return false;
         }
-
+        debugLog("Requested lifetime: $lifetime");
         if(!$decoder->getElementEndTag())
             return false;
     }
 
+    if ($lifetime < $goodheartbeat && $forceHeartBeat < 2) {
+        $forceHeartBeat = 1;
+    }
+
+    if ($forceHeartBeat == 1) {
+      debugLog("Forcing higher heartbeat");
+      $encoder->StartWBXML();
+
+      $encoder->startTag(SYNC_PING_PING);
+      {
+          $encoder->startTag(SYNC_PING_STATUS);
+          $encoder->content(5);
+          $encoder->endTag();
+
+          $encoder->startTag(SYNC_PING_FOLDERS);
+          foreach($collections as $collection) {
+              if(isset($changes[$collection["serverid"]])) {
+                  $encoder->startTag(SYNC_PING_FOLDER);
+                  $encoder->content($collection["serverid"]);
+                  $encoder->endTag();
+              }
+          }
+          $encoder->endTag();
+          $encoder->startTag(SYNC_PING_LIFETIME);
+          $encoder->content($goodheartbeat);
+          $encoder->endTag();
+      }
+      $encoder->endTag();
+      return true;
+    }
     $changes = array();
     $dataavailable = false;
-
     debugLog("Waiting for changes... (lifetime $lifetime)");
+    file_put_contents( STATE_DIR . "/" . $devid, serialize(array("lifetime" => $lifetime, "collections" => $collections, "pingrunning" => 1, "pid" => getmypid())));
+
     // Wait for something to happen
-    for($n=0;$n<$lifetime / $timeout; $n++ ) {
+    $reallifetime = $lifetime;
+    if ($reallifetime > 300) {
+      // some clients (iphones) have problems with too long time to
+      // calculate the exact ping time let's reduce from half a minute ...
+      $reallifetime = $lifetime - 30;
+    }
+    for($n=0;$n<$reallifetime / $timeout; $n++ ) {
         //check the remote wipe status
         if (PROVISIONING === true) {
 	        $rwstatus = $backend->getDeviceRWStatus($user, $auth_pw, $devid);
