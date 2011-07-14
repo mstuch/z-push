@@ -207,17 +207,20 @@ class BackendIMAP extends BackendDiff {
                     $org_boundary = $message->ctype_parameters["boundary"];
                 }
 
+                if (preg_match("/alternative/i", $v)) {
+                  $is_alternative = true;
+                }
+
                 // save the original content-type header for the body part when forwarding
                 // If we have a multipart/alternative we keep the original body but we wil generate
                 // a new subboundary and will replace the Content-type: header
-                if ($forward && (!$use_orgbody || preg_match("/alternative/i", $v))) {
+                if ($forward && (!$use_orgbody || $is_alternative)) {
                     $org_boundary = false;
                     $forward_h_ct = $v;
                     continue;
                 }
 
-                if (preg_match("/alternative/i", $v)) {
-                  $is_alternative = true;
+                if ($is_alternative) {
                   continue;
                 }
 
@@ -434,24 +437,43 @@ class BackendIMAP extends BackendDiff {
                         $repl_body = chunk_split(base64_encode($repl_body));
                 }
 
+                $attached = false;
                 if ($use_orgbody) {
                     debugLog("-------------------");
-                    debugLog("old:\n'$repl_body'\nnew:\n'$nbody'\nund der body:\n'$body'");
+                    debugLog("text from decoded from the received email:\n'$repl_body'\nnew text (include the replied email):\n'$nbody'\nraw body of the received email:\n'$body'");
                     //$body is quoted-printable encoded while $repl_body and $nbody are plain text,
                     //so we need to decode $body in order replace to take place
-                    $body = str_replace($repl_body, $nbody, quoted_printable_decode($body));
+                    //This is weird ! Body is basically the email send by the pda/phone
+                    //that has a multipart/<something>
+                    //$body = str_replace($repl_body, $nbody, quoted_printable_decode($body));
+                    //It would be wiser to replace the the quoted printable version of repl_body
+                    //by the quoted printable version of nbody in body (only if the body is in
+                    // quoted printable)
+                    $body = $nbody;
+                    // We need to attach the curent body as an attachement
+                    $attached = true;
+                    if ($is_alternative) {
+                        $forward_h_ct = "text/plain; charset=utf-8";
+                        $forward_h_cte = "base64";
+                        $body = chunk_split(base64_encode($body));
+                    }
+                    // we are in this case if we had multipart/alternative
+                    if (!$org_boundary) {
+                        $org_boundary = strtoupper(md5(uniqid(time())));
+                        $headers .= "\n" . "Content-Type: multipart/mixed; boundary=$org_boundary";
+                    }
+                    $body = $this->enc_multipart($org_boundary, $body, $forward_h_ct, $forward_h_cte);
                 }
                 else
                     $body = $nbody;
 
                 // mess2 is the message that we forward fetched from the imap backend
                 if(isset($mess2->parts)) {
-                    $attached = false;
 
                     if ($org_boundary) {
                         $att_boundary = $org_boundary;
-                        // cut end boundary from body
-                        $body = substr($body, 0, strrpos($body, "--$att_boundary--"));
+                        // cut end boundary from body if needed
+                        $body = str_replace("--$att_boundary--", "", $body);
                     }
                     else {
                         // add boundary headers
