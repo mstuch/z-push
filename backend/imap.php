@@ -191,6 +191,7 @@ class BackendIMAP extends BackendDiff {
         $org_charset = "";
         $org_boundary = false;
         $date = "";
+        $is_alternative = false;
         foreach($message->headers as $k => $v) {
             if ($k == "date") {
                 $date = $message->headers["date"];
@@ -213,6 +214,11 @@ class BackendIMAP extends BackendDiff {
                     $org_boundary = false;
                     $forward_h_ct = $v;
                     continue;
+                }
+
+                if (preg_match("/alternative/i", $v)) {
+                  $is_alternative = true;
+                  continue;
                 }
 
                 // set charset always to utf-8
@@ -350,7 +356,24 @@ class BackendIMAP extends BackendDiff {
             $origmail = @imap_fetchheader($this->_mbox, $reply, FT_UID) . @imap_body($this->_mbox, $reply, FT_PEEK | FT_UID);
             $mobj2 = new Mail_mimeDecode($origmail);
             // receive only body
-            $body .= $this->getBody($mobj2->decode(array('decode_headers' => false, 'decode_bodies' => true, 'include_bodies' => true, 'charset' => 'utf-8')));
+            if ($is_alternative) {
+              $body = $repl_body;
+              $headers .= "\n" . "Content-Type: text/plain; charset= utf-8";
+              // utf-8 as been forced by the transformation mobj->decode() ..
+              $headers .= "\nContent-Transfer-Encoding: base64";
+              $body_base64 = true;
+            }
+
+            $text = $this->getBody($mobj2->decode(array('decode_headers' => false, 'decode_bodies' => true, 'include_bodies' => true, 'charset' => 'utf-8')));
+            if ($use_orgbody && !$is_alternative) {
+              $body = str_replace("--$org_boundary--", "", $body);
+
+              $body .= $this->enc_multipart($org_boundary, $text, "text/plain; charset=utf-8", "8bit");
+
+              $body .= "--$org_boundary--\n\n";
+            } else {
+              $body .= $text;
+            }
             // unset mimedecoder & origmail - free memory
             unset($mobj2);
             unset($origmail);
