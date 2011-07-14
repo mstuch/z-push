@@ -413,20 +413,23 @@ class BackendIMAP extends BackendDiff {
                     $nbody = $body;
                 else
                     $nbody = $repl_body;
-
-                $nbody .= "\r\n\r\n";
-                $nbody .= "-----Original Message-----\r\n";
-                if(isset($mess2->headers['from']))
-                    $nbody .= "From: " . $mess2->headers['from'] . "\r\n";
-                if(isset($mess2->headers['to']) && strlen($mess2->headers['to']) > 0)
-                    $nbody .= "To: " . $mess2->headers['to'] . "\r\n";
-                if(isset($mess2->headers['cc']) && strlen($mess2->headers['cc']) > 0)
-                    $nbody .= "Cc: " . $mess2->headers['cc'] . "\r\n";
-                if(isset($mess2->headers['date']))
-                    $nbody .= "Sent: " . $mess2->headers['date'] . "\r\n";
-                if(isset($mess2->headers['subject']))
-                    $nbody .= "Subject: " . $mess2->headers['subject'] . "\r\n";
-                $nbody .= "\r\n";
+                // Some phones/pda have already a Forwarded/Original message
+                // try to detect it with \n + ----
+                if (strpos($nbody, "\n----") === false) {
+                    $nbody .= "\r\n\r\n";
+                    $nbody .= "-----Original Message-----\r\n";
+                    if(isset($mess2->headers['from']))
+                        $nbody .= "From: " . $mess2->headers['from'] . "\r\n";
+                    if(isset($mess2->headers['to']) && strlen($mess2->headers['to']) > 0)
+                        $nbody .= "To: " . $mess2->headers['to'] . "\r\n";
+                    if(isset($mess2->headers['cc']) && strlen($mess2->headers['cc']) > 0)
+                        $nbody .= "Cc: " . $mess2->headers['cc'] . "\r\n";
+                    if(isset($mess2->headers['date']))
+                        $nbody .= "Sent: " . $mess2->headers['date'] . "\r\n";
+                    if(isset($mess2->headers['subject']))
+                        $nbody .= "Subject: " . $mess2->headers['subject'] . "\r\n";
+                    $nbody .= "\r\n";
+                }
                 $nbody .= $this->getBody($mess2);
 
                 if ($body_base64) {
