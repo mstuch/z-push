@@ -443,7 +443,7 @@ class BackendIMAP extends BackendDiff {
                 $attached = false;
                 if ($use_orgbody) {
                     debugLog("-------------------");
-                    debugLog("text from decoded from the received email:\n'$repl_body'\nnew text (include the replied email):\n'$nbody'\nraw body of the received email:\n'$body'");
+                    debugLog("text from decoded from the received email:\n'$repl_body'\nnew text (include the replied email):\n'$nbody'\nraw body of the received email:\n'$body'", 2);
                     //$body is quoted-printable encoded while $repl_body and $nbody are plain text,
                     //so we need to decode $body in order replace to take place
                     //This is weird ! Body is basically the email send by the pda/phone
