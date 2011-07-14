@@ -207,7 +207,10 @@ class BackendIMAP extends BackendDiff {
                 }
 
                 // save the original content-type header for the body part when forwarding
-                if ($forward && !$use_orgbody) {
+                // If we have a multipart/alternative we keep the original body but we wil generate
+                // a new subboundary and will replace the Content-type: header
+                if ($forward && (!$use_orgbody || preg_match("/alternative/i", $v))) {
+                    $org_boundary = false;
                     $forward_h_ct = $v;
                     continue;
                 }
@@ -1145,13 +1148,17 @@ class BackendIMAP extends BackendDiff {
     }
 
     function enc_multipart($boundary, $body, $body_ct, $body_cte) {
-        $mail_body = "This is a multi-part message in MIME format\n\n";
+      $mail_body = "This is a multi-part message in MIME format\n\n";
+      if ($body_ct != "") {
         $mail_body .= "--$boundary\n";
         $mail_body .= "Content-Type: $body_ct\n";
-        $mail_body .= "Content-Transfer-Encoding: $body_cte\n\n";
-        $mail_body .= "$body\n\n";
+        if ($body_cte != "")
+          $mail_body .= "Content-Transfer-Encoding: $body_cte\n";
+        $mail_body .= "\n";
+      }
 
-        return $mail_body;
+      $mail_body .= "$body\n\n";
+      return $mail_body;
     }
 
     function enc_attach_file($boundary, $filenm, $filesize, $file_cont, $content_type = "") {
