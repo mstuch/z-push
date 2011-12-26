@@ -937,7 +937,12 @@ function HandlePing($backend, $devid) {
         $ping = unserialize(file_get_contents($file));
         $collections = $ping["collections"];
         $lifetime = $ping["lifetime"];
-        if (isset($ping["pingrunning"])) {
+        // user_agent for iphone were found at:
+        // http://www.hedonists.ca/2010/07/22/blocking-the-iphone-part-i
+        // Seems that the serie 3.x of iphone firmware has problem with raising the
+        // ping limit although it should be supported by phones as indicated in the MS-ASxx.pdf files
+        $is_ios_3x = strpos($_SERVER['HTTP_USER_AGENT'], "Apple-iPhone/70");
+        if (isset($ping["pingrunning"]) && $is_ios_3x === false ) {
           // We received a ping request while another is running.
           $forceHeartBeat = 1;
         }
