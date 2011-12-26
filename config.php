@@ -92,7 +92,7 @@
     define('SYNC_FILTERTIME_MAX', SYNC_FILTERTYPE_ALL);
 
     // The data providers that we are using (see configuration below)
-    $BACKEND_PROVIDER = "BackendICS";
+    $BACKEND_PROVIDER = "BackendIMAP";
 
     // ************************
     //  BackendICS settings
