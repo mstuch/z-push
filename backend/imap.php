@@ -965,7 +965,8 @@ class BackendIMAP extends BackendDiff {
                         $attachment->displayname = $attname;
                         $attachment->attname = $folderid . ":" . $id . ":" . $n;
                         $attachment->attmethod = 1;
-                        $attachment->attoid = isset($part->headers['content-id']) ? $part->headers['content-id'] : "";
+                        //$attachment->attoid = isset($part->headers['content-id']) ? $part->headers['content-id'] : "";
+                        $attachment->attoid = "";
                         array_push($output->attachments, $attachment);
                     }
                     $n++;
