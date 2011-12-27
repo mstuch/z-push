@@ -1108,9 +1108,9 @@ class BackendIMAP extends BackendDiff {
             $newstate = "M:". $status->messages ."-R:". $status->recent ."-U:". $status->unseen;
 
             // message number is different - change occured
-            if ($syncstate != $newstate) {
+            if (gettype($syncstate) != "string" || strcmp($syncstate, $newstate) != 0) {
+                debugLog("AlterPingChanges: Change FOUND!, $newstate, $syncstate");
                 $syncstate = $newstate;
-                debugLog("AlterPingChanges: Change FOUND!");
                 // build a dummy change
                 return array(array("type" => "fakeChange"));
             }
